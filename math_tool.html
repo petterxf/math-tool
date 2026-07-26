@@ -1,0 +1,1698 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数学工具 - 函数图像绘制器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+        }
+        #canvas {
+            display: block;
+            background: white;
+        }
+        .control-panel {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            width: 300px;
+            min-width: 250px;
+            max-width: 450px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            z-index: 1000;
+            user-select: none;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+        .control-panel.collapsed {
+            transform: translateX(-120%);
+            opacity: 0;
+            pointer-events: none;
+        }
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 15px;
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            border-radius: 12px 12px 0 0;
+            cursor: move;
+        }
+        .panel-header h2 {
+            font-size: 16px;
+            font-weight: 600;
+        }
+        .toggle-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.3s;
+        }
+        .toggle-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        .panel-body {
+            display: flex;
+            flex-direction: column;
+            max-height: calc(100vh - 100px);
+        }
+        .color-bar {
+            padding: 10px 15px;
+            background: #f9f9f9;
+            border-bottom: 1px solid #eee;
+        }
+        .color-picker {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .current-color {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .current-color-label {
+            font-size: 11px;
+            color: #888;
+        }
+        .color-preview {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            border: 2px solid #333;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .preset-colors {
+            display: flex;
+            gap: 4px;
+            padding-left: 8px;
+            border-left: 1px solid #ddd;
+            margin-left: 4px;
+        }
+        .preset-color {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        .preset-color:hover {
+            transform: scale(1.15);
+            border-color: #333;
+        }
+        .preset-color.selected {
+            border-color: #333;
+            box-shadow: 0 0 0 2px rgba(0,0,0,0.2);
+        }
+        .color-picker-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            border: 2px solid #ddd;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            background: linear-gradient(135deg, #ff6b6b, #feca57, #48dbfb, #ff9ff3);
+            transition: all 0.2s;
+            margin-left: 8px;
+            padding-left: 8px;
+            border-left: 1px solid #ddd;
+        }
+        .color-picker-btn:hover {
+            transform: scale(1.1);
+            border-color: #333;
+        }
+        .color-picker-btn input[type="color"] {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+            pointer-events: none;
+        }
+        .tabs {
+            display: flex;
+            background: #f0f0f0;
+            border-bottom: 1px solid #ddd;
+        }
+        .tab {
+            flex: 1;
+            padding: 10px 5px;
+            text-align: center;
+            cursor: pointer;
+            font-size: 12px;
+            color: #666;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s;
+        }
+        .tab:hover {
+            background: #e8e8e8;
+        }
+        .tab.active {
+            color: #4CAF50;
+            border-bottom-color: #4CAF50;
+            background: white;
+        }
+        .panel-content {
+            padding: 15px;
+            overflow-y: auto;
+            flex: 1;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .section {
+            margin-bottom: 15px;
+            padding: 12px;
+            background: #f9f9f9;
+            border-radius: 8px;
+        }
+        .section h3 {
+            color: #555;
+            margin-bottom: 10px;
+            font-size: 13px;
+        }
+        .input-row {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 8px;
+            align-items: center;
+        }
+        .input-row label {
+            font-size: 12px;
+            color: #666;
+            flex-shrink: 0;
+        }
+        .input-row input {
+            flex: 1;
+            min-width: 0;
+            padding: 6px 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .input-row input:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+        .input-row span {
+            font-size: 11px;
+            color: #888;
+        }
+        .input-row .short-label {
+            width: auto;
+            margin-right: 2px;
+        }
+        .input-row .short-input {
+            flex: 1;
+        }
+        button {
+            width: 100%;
+            padding: 8px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button.delete-btn {
+            background: #f44336;
+            margin-top: 5px;
+        }
+        button.delete-btn:hover {
+            background: #da190b;
+        }
+        button.secondary-btn {
+            background: #2196F3;
+        }
+        button.secondary-btn:hover {
+            background: #1976D2;
+        }
+        .color-picker {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .color-picker input[type="color"] {
+            width: 40px;
+            height: 28px;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .color-preview {
+            width: 28px;
+            height: 28px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        .shape-list {
+            max-height: 150px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: white;
+        }
+        .shape-item {
+            padding: 6px 10px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            font-size: 11px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .shape-item:hover {
+            background: #f0f0f0;
+        }
+        .shape-item.selected {
+            background: #e3f2fd;
+        }
+        .shape-color {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
+        }
+        .btn-group {
+            display: flex;
+            gap: 5px;
+            margin-top: 8px;
+        }
+        .btn-group button {
+            flex: 1;
+        }
+        .switch-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+        }
+        .switch-row label {
+            font-size: 12px;
+            color: #666;
+        }
+        .switch {
+            position: relative;
+            width: 44px;
+            height: 24px;
+        }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: 0.3s;
+            border-radius: 24px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.3s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #4CAF50;
+        }
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+        .zoom-info {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            z-index: 100;
+        }
+        .help-info {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 11px;
+            z-index: 100;
+        }
+        .ad-sidebar {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 160px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            z-index: 1000;
+            overflow: hidden;
+        }
+        .ad-header {
+            background: linear-gradient(135deg, #FF6B6B, #ee5a52);
+            color: white;
+            padding: 10px 15px;
+            font-size: 14px;
+            font-weight: 600;
+            text-align: center;
+        }
+        .ad-container {
+            padding: 10px;
+            min-height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+        .ad-placeholder {
+            width: 100%;
+            min-height: 300px;
+            background: linear-gradient(135deg, #f5f5f5, #e0e0e0);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            color: #999;
+            font-size: 12px;
+            text-align: center;
+            padding: 20px;
+        }
+        .ad-placeholder::before {
+            content: "📢";
+            font-size: 48px;
+            margin-bottom: 15px;
+            opacity: 0.3;
+        }
+        .expand-hint {
+            position: fixed;
+            top: 20px;
+            left: 0;
+            width: 30px;
+            height: 50px;
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border-radius: 0 8px 8px 0;
+            font-size: 14px;
+            z-index: 999;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        .expand-hint.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .resize-handle {
+            position: absolute;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            width: 6px;
+            cursor: ew-resize;
+            background: transparent;
+            border-radius: 0 12px 12px 0;
+        }
+        .resize-handle:hover {
+            background: rgba(76, 175, 80, 0.3);
+        }
+        .formula-hint {
+            font-size: 10px;
+            color: #999;
+            margin-top: 4px;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    
+    <div class="control-panel" id="controlPanel">
+        <div class="panel-header" id="panelHeader">
+            <h2>📐 数学工具</h2>
+            <button class="toggle-btn" id="toggleBtn">◀</button>
+        </div>
+        <div class="panel-body">
+            <div class="color-bar">
+                <div class="color-picker">
+                    <div class="current-color">
+                        <span class="current-color-label">当前:</span>
+                        <div class="color-preview" id="colorPreview" style="background: #1f77b4;"></div>
+                    </div>
+                    <div class="preset-colors" id="presetColors">
+                        <div class="preset-color selected" style="background: #1f77b4;" data-color="#1f77b4"></div>
+                        <div class="preset-color" style="background: #ff7f0e;" data-color="#ff7f0e"></div>
+                        <div class="preset-color" style="background: #2ca02c;" data-color="#2ca02c"></div>
+                        <div class="preset-color" style="background: #d62728;" data-color="#d62728"></div>
+                        <div class="preset-color" style="background: #9467bd;" data-color="#9467bd"></div>
+                    </div>
+                    <label class="color-picker-btn" title="自定义颜色">
+                        🌈
+                        <input type="color" id="colorPicker" value="#1f77b4">
+                    </label>
+                </div>
+            </div>
+            <div class="tabs">
+                <div class="tab active" data-tab="basic">基础图形</div>
+                <div class="tab" data-tab="functions">函数曲线</div>
+                <div class="tab" data-tab="settings">设置</div>
+            </div>
+            <div class="panel-content">
+                <div class="tab-content active" id="tab-basic">
+                    <div class="section">
+                        <h3>📍 添加坐标点</h3>
+                        <div class="input-row">
+                            <label class="short-label">X:</label>
+                            <input type="text" id="pointX" class="number-input short-input" placeholder="0">
+                            <label class="short-label" style="margin-left: 8px;">Y:</label>
+                            <input type="text" id="pointY" class="number-input short-input" placeholder="0">
+                        </div>
+                        <button onclick="addPoint()">添加点</button>
+                    </div>
+                    
+                    <div class="section">
+                        <h3>⭕ 添加圆</h3>
+                        <div class="input-row">
+                            <label>圆心X:</label>
+                            <input type="text" id="circleX" class="number-input" placeholder="0">
+                        </div>
+                        <div class="input-row">
+                            <label>圆心Y:</label>
+                            <input type="text" id="circleY" class="number-input" placeholder="0">
+                        </div>
+                        <div class="input-row">
+                            <label>半径:</label>
+                            <input type="text" id="circleR" class="number-input" placeholder="2">
+                        </div>
+                        <button onclick="addCircle()">添加圆</button>
+                    </div>
+                    
+                    <div class="section">
+                        <h3>🔵 添加椭圆</h3>
+                        <div class="input-row">
+                            <label>中心X:</label>
+                            <input type="text" id="ellipseX" class="number-input" placeholder="0">
+                        </div>
+                        <div class="input-row">
+                            <label>中心Y:</label>
+                            <input type="text" id="ellipseY" class="number-input" placeholder="0">
+                        </div>
+                        <div class="input-row">
+                            <label>长轴a:</label>
+                            <input type="text" id="ellipseA" class="number-input" placeholder="3">
+                        </div>
+                        <div class="input-row">
+                            <label>短轴b:</label>
+                            <input type="text" id="ellipseB" class="number-input" placeholder="2">
+                        </div>
+                        <button onclick="addEllipse()">添加椭圆</button>
+                    </div>
+                </div>
+                
+                <div class="tab-content" id="tab-functions">
+                    <div class="section">
+                        <h3>📏 直线 (y = kx + b)</h3>
+                        <div class="input-row">
+                            <label>斜率k:</label>
+                            <input type="text" id="lineK" class="number-input" placeholder="1">
+                        </div>
+                        <div class="input-row">
+                            <label>截距b:</label>
+                            <input type="text" id="lineB" class="number-input" placeholder="0">
+                        </div>
+                        <button onclick="addLine()">添加直线</button>
+                    </div>
+                    
+                    <div class="section">
+                        <h3>📈 抛物线 (y = ax² + bx + c)</h3>
+                        <div class="input-row">
+                            <label>a:</label>
+                            <input type="text" id="parabolaA" class="number-input" placeholder="1">
+                        </div>
+                        <div class="input-row">
+                            <label>b:</label>
+                            <input type="text" id="parabolaB" class="number-input" placeholder="0">
+                        </div>
+                        <div class="input-row">
+                            <label>c:</label>
+                            <input type="text" id="parabolaC" class="number-input" placeholder="0">
+                        </div>
+                        <button onclick="addParabola()">添加抛物线</button>
+                    </div>
+                    
+                    <div class="section">
+                        <h3>〰️ 双曲线 (x²/a² - y²/b² = 1)</h3>
+                        <div class="input-row">
+                            <label>a:</label>
+                            <input type="text" id="hyperbolaA" class="number-input" placeholder="2">
+                        </div>
+                        <div class="input-row">
+                            <label>b:</label>
+                            <input type="text" id="hyperbolaB" class="number-input" placeholder="1">
+                        </div>
+                        <button onclick="addHyperbola()">添加双曲线</button>
+                    </div>
+                    
+                    <div class="section">
+                        <h3>📊 指数函数 (y = a·e^(bx) + c)</h3>
+                        <div class="input-row">
+                            <label>a:</label>
+                            <input type="text" id="expA" class="number-input" placeholder="1">
+                        </div>
+                        <div class="input-row">
+                            <label>b:</label>
+                            <input type="text" id="expB" class="number-input" placeholder="1">
+                        </div>
+                        <div class="input-row">
+                            <label>c:</label>
+                            <input type="text" id="expC" class="number-input" placeholder="0">
+                        </div>
+                        <button onclick="addExponential()">添加指数函数</button>
+                    </div>
+                    
+                    <div class="section">
+                        <h3>📉 对数函数 (y = a·ln(bx) + c)</h3>
+                        <div class="input-row">
+                            <label>a:</label>
+                            <input type="text" id="logA" class="number-input" placeholder="1">
+                        </div>
+                        <div class="input-row">
+                            <label>b:</label>
+                            <input type="text" id="logB" class="number-input" placeholder="1">
+                        </div>
+                        <div class="input-row">
+                            <label>c:</label>
+                            <input type="text" id="logC" class="number-input" placeholder="0">
+                        </div>
+                        <button onclick="addLogarithm()">添加对数函数</button>
+                    </div>
+                    
+                    <div class="section">
+                        <h3>🌀 正弦函数 (y = a·sin(bx + c) + d)</h3>
+                        <div class="input-row">
+                            <label>a:</label>
+                            <input type="text" id="sinA" class="number-input" placeholder="1">
+                        </div>
+                        <div class="input-row">
+                            <label>b:</label>
+                            <input type="text" id="sinB" class="number-input" placeholder="1">
+                        </div>
+                        <div class="input-row">
+                            <label>c:</label>
+                            <input type="text" id="sinC" class="number-input" placeholder="0">
+                        </div>
+                        <div class="input-row">
+                            <label>d:</label>
+                            <input type="text" id="sinD" class="number-input" placeholder="0">
+                        </div>
+                        <button onclick="addSine()">添加正弦函数</button>
+                    </div>
+                </div>
+                
+                <div class="tab-content" id="tab-settings">
+                    <div class="section">
+                        <h3>⚙️ 显示设置</h3>
+                        <div class="switch-row">
+                            <label>显示网格</label>
+                            <label class="switch">
+                                <input type="checkbox" id="showGrid" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="switch-row">
+                            <label>显示坐标轴</label>
+                            <label class="switch">
+                                <input type="checkbox" id="showAxis" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="switch-row">
+                            <label>显示刻度标签</label>
+                            <label class="switch">
+                                <input type="checkbox" id="showLabels" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="section">
+                        <h3>📋 图形列表</h3>
+                        <div class="shape-list" id="shapeList"></div>
+                        <div class="btn-group">
+                            <button onclick="deleteSelected()" class="delete-btn">删除选中</button>
+                            <button onclick="clearAll()" class="delete-btn">清空全部</button>
+                        </div>
+                    </div>
+                    
+                    <div class="section">
+                        <h3>🔍 视图控制</h3>
+                        <div class="input-row">
+                            <label>X范围:</label>
+                            <input type="text" id="xMin" class="number-input" placeholder="-10">
+                            <span>到</span>
+                            <input type="text" id="xMax" class="number-input" placeholder="10">
+                        </div>
+                        <div class="input-row">
+                            <label>Y范围:</label>
+                            <input type="text" id="yMin" class="number-input" placeholder="-10">
+                            <span>到</span>
+                            <input type="text" id="yMax" class="number-input" placeholder="10">
+                        </div>
+                        <div class="btn-group">
+                            <button onclick="applyRange()">应用范围</button>
+                            <button onclick="autoFit()">自动适应</button>
+                        </div>
+                        <div class="btn-group">
+                            <button onclick="resetView()">重置视图</button>
+                        </div>
+                    </div>
+                    
+                    <div class="section">
+                        <h3>💾 导出图片</h3>
+                        <button onclick="saveImage()" class="secondary-btn">保存为PNG图片</button>
+                    </div>
+                    
+                    <div class="section">
+                        <h3>💾 数据保存与加载</h3>
+                        <div class="btn-group">
+                            <button onclick="saveData()" class="secondary-btn">保存数据</button>
+                            <button onclick="loadData()" style="background: #ff9800;">加载数据</button>
+                        </div>
+                        <div style="margin-top: 8px;">
+                            <button onclick="clearStorage()" class="delete-btn" style="font-size: 11px; padding: 6px;">清除本地存储</button>
+                        </div>
+                        <p style="font-size: 10px; color: #999; margin-top: 8px;">
+                            💡 数据会自动保存到浏览器本地存储，刷新页面不会丢失。点击"保存数据"可导出JSON文件，点击"加载数据"可导入。
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="resize-handle" id="resizeHandle"></div>
+    </div>
+    
+    <div class="expand-hint" id="expandHint">▶</div>
+    
+    <div class="zoom-info" id="zoomInfo">缩放: 100%</div>
+    <div class="help-info">滚轮缩放 | 拖拽平移 | 双击重置</div>
+
+    <!-- 广告侧边栏 -->
+    <div class="ad-sidebar">
+        <div class="ad-header">赞助商</div>
+        <div class="ad-container">
+            <!-- 在此替换为你的Google AdSense代码 -->
+            <div class="ad-placeholder">
+                广告位<br><br>
+                申请AdSense后<br>
+                替换此处的代码
+            </div>
+
+            <!-- Google AdSense代码示例（需要替换成你的真实代码）:
+            <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-YOUR_PUBLISHER_ID"
+                     crossorigin="anonymous"></script>
+            <ins class="adsbygoogle"
+                 style="display:block"
+                 data-ad-client="ca-pub-YOUR_PUBLISHER_ID"
+                 data-ad-slot="YOUR_AD_SLOT_ID"
+                 data-ad-format="auto"
+                 data-full-width-responsive="true"></ins>
+            <script>
+                 (adsbygoogle = window.adsbygoogle || []).push({});
+            </script>
+            -->
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        let shapes = [];
+        let currentColor = '#1f77b4';
+        let selectedIndex = -1;
+        
+        let centerX = 0, centerY = 0;
+        let scale = 50;
+        let baseScale = 50;
+        
+        let isDragging = false;
+        let lastMouseX, lastMouseY;
+        
+        let showGrid = true;
+        let showAxis = true;
+        let showLabels = true;
+        
+        const MIN_GRID_PIXELS = 40;
+        
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                
+                this.classList.add('active');
+                document.getElementById('tab-' + this.dataset.tab).classList.add('active');
+            });
+        });
+        
+        document.getElementById('showGrid').addEventListener('change', function() {
+            showGrid = this.checked;
+            draw();
+        });
+        
+        document.getElementById('showAxis').addEventListener('change', function() {
+            showAxis = this.checked;
+            draw();
+        });
+        
+        document.getElementById('showLabels').addEventListener('change', function() {
+            showLabels = this.checked;
+            draw();
+        });
+        
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            draw();
+        }
+        
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+        
+        document.getElementById('colorPicker').addEventListener('input', function(e) {
+            currentColor = e.target.value;
+            document.getElementById('colorPreview').style.background = currentColor;
+            updatePresetColorSelection(currentColor);
+        });
+        
+        document.querySelectorAll('.preset-color').forEach(el => {
+            el.addEventListener('click', function() {
+                currentColor = this.dataset.color;
+                document.getElementById('colorPreview').style.background = currentColor;
+                document.getElementById('colorPicker').value = currentColor;
+                updatePresetColorSelection(currentColor);
+            });
+        });
+        
+        function updatePresetColorSelection(color) {
+            document.querySelectorAll('.preset-color').forEach(el => {
+                if (el.dataset.color === color) {
+                    el.classList.add('selected');
+                } else {
+                    el.classList.remove('selected');
+                }
+            });
+        }
+        
+        function worldToScreen(x, y) {
+            const sx = canvas.width / 2 + (x - centerX) * scale;
+            const sy = canvas.height / 2 - (y - centerY) * scale;
+            return [sx, sy];
+        }
+        
+        function screenToWorld(sx, sy) {
+            const x = (sx - canvas.width / 2) / scale + centerX;
+            const y = -(sy - canvas.height / 2) / scale + centerY;
+            return [x, y];
+        }
+        
+        function calculateGridStep() {
+            const viewRange = canvas.width / scale;
+            const idealStep = viewRange / (canvas.width / MIN_GRID_PIXELS);
+            
+            const magnitude = Math.pow(10, Math.floor(Math.log10(idealStep)));
+            const normalized = idealStep / magnitude;
+            
+            let step;
+            if (normalized < 1.5) step = magnitude;
+            else if (normalized < 3.5) step = 2 * magnitude;
+            else if (normalized < 7.5) step = 5 * magnitude;
+            else step = 10 * magnitude;
+            
+            return step;
+        }
+        
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            const xMin = centerX - canvas.width / 2 / scale;
+            const xMax = centerX + canvas.width / 2 / scale;
+            const yMin = centerY - canvas.height / 2 / scale;
+            const yMax = centerY + canvas.height / 2 / scale;
+            
+            const gridStep = calculateGridStep();
+            
+            if (showGrid) {
+                ctx.strokeStyle = '#e8e8e8';
+                ctx.lineWidth = 1;
+                
+                for (let x = Math.floor(xMin / gridStep) * gridStep; x <= xMax; x += gridStep) {
+                    const [sx, _] = worldToScreen(x, 0);
+                    ctx.beginPath();
+                    ctx.moveTo(sx, 0);
+                    ctx.lineTo(sx, canvas.height);
+                    ctx.stroke();
+                }
+                
+                for (let y = Math.floor(yMin / gridStep) * gridStep; y <= yMax; y += gridStep) {
+                    const [_, sy] = worldToScreen(0, y);
+                    ctx.beginPath();
+                    ctx.moveTo(0, sy);
+                    ctx.lineTo(canvas.width, sy);
+                    ctx.stroke();
+                }
+            }
+            
+            const [ox, oy] = worldToScreen(0, 0);
+            
+            if (showAxis) {
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 1.5;
+                
+                if (xMin <= 0 && 0 <= xMax) {
+                    ctx.beginPath();
+                    ctx.moveTo(ox, 0);
+                    ctx.lineTo(ox, canvas.height);
+                    ctx.stroke();
+                }
+                
+                if (yMin <= 0 && 0 <= yMax) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, oy);
+                    ctx.lineTo(canvas.width, oy);
+                    ctx.stroke();
+                }
+            }
+            
+            if (showLabels) {
+                ctx.fillStyle = '#666';
+                ctx.font = '11px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'top';
+                
+                for (let x = Math.floor(xMin / gridStep) * gridStep; x <= xMax; x += gridStep) {
+                    if (Math.abs(x) > gridStep * 0.1) {
+                        const [sx, _] = worldToScreen(x, 0);
+                        if (yMin <= 0 && 0 <= yMax) {
+                            ctx.fillText(formatNumber(x), sx, oy + 5);
+                        } else {
+                            ctx.fillText(formatNumber(x), sx, canvas.height - 15);
+                        }
+                    }
+                }
+                
+                ctx.textAlign = 'right';
+                ctx.textBaseline = 'middle';
+                
+                for (let y = Math.floor(yMin / gridStep) * gridStep; y <= yMax; y += gridStep) {
+                    if (Math.abs(y) > gridStep * 0.1) {
+                        const [_, sy] = worldToScreen(0, y);
+                        if (xMin <= 0 && 0 <= xMax) {
+                            ctx.fillText(formatNumber(y), ox - 5, sy);
+                        } else {
+                            ctx.fillText(formatNumber(y), canvas.width - 10, sy);
+                        }
+                    }
+                }
+                
+                if (showAxis) {
+                    ctx.fillStyle = '#333';
+                    ctx.font = 'bold 14px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'bottom';
+                    ctx.fillText('X', canvas.width - 20, oy - 5);
+                    ctx.fillText('Y', ox + 10, 20);
+                }
+            }
+            
+            drawShapes();
+            updateZoomInfo();
+            updateRangeInputs();
+        }
+        
+        function formatNumber(n) {
+            if (Math.abs(n) < 0.001) return '0';
+            if (Math.abs(n) >= 1000 || Math.abs(n) < 0.01) {
+                return n.toExponential(1);
+            }
+            return parseFloat(n.toPrecision(4)).toString();
+        }
+        
+        function drawShapes() {
+            shapes.forEach((shape, index) => {
+                ctx.strokeStyle = shape.color;
+                ctx.fillStyle = shape.color;
+                
+                switch (shape.type) {
+                    case 'point': drawPoint(shape); break;
+                    case 'circle': drawCircle(shape); break;
+                    case 'ellipse': drawEllipse(shape); break;
+                    case 'line': drawLine(shape); break;
+                    case 'parabola': drawParabola(shape); break;
+                    case 'hyperbola': drawHyperbola(shape); break;
+                    case 'exponential': drawExponential(shape); break;
+                    case 'logarithm': drawLogarithm(shape); break;
+                    case 'sine': drawSine(shape); break;
+                }
+            });
+        }
+        
+        function drawPoint(shape) {
+            const [sx, sy] = worldToScreen(shape.x, shape.y);
+            ctx.beginPath();
+            ctx.arc(sx, sy, 6, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText(`(${shape.x.toFixed(2)}, ${shape.y.toFixed(2)})`, sx + 10, sy - 5);
+        }
+        
+        function drawCircle(shape) {
+            const [cx, cy] = worldToScreen(shape.x, shape.y);
+            const r = shape.r * scale;
+            
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        function drawEllipse(shape) {
+            const [cx, cy] = worldToScreen(shape.x, shape.y);
+            const rx = shape.a * scale;
+            const ry = shape.b * scale;
+            
+            ctx.beginPath();
+            ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
+        function drawLine(shape) {
+            const xMin = centerX - canvas.width / 2 / scale;
+            const xMax = centerX + canvas.width / 2 / scale;
+            
+            const y1 = shape.k * xMin + shape.b;
+            const y2 = shape.k * xMax + shape.b;
+            
+            const [sx1, sy1] = worldToScreen(xMin, y1);
+            const [sx2, sy2] = worldToScreen(xMax, y2);
+            
+            ctx.beginPath();
+            ctx.moveTo(sx1, sy1);
+            ctx.lineTo(sx2, sy2);
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+        
+        function drawParabola(shape) {
+            const xMin = centerX - canvas.width / 2 / scale;
+            const xMax = centerX + canvas.width / 2 / scale;
+            
+            ctx.beginPath();
+            ctx.lineWidth = 2;
+            
+            let first = true;
+            for (let x = xMin; x <= xMax; x += 1 / scale) {
+                const y = shape.a * x * x + shape.b * x + shape.c;
+                const [sx, sy] = worldToScreen(x, y);
+                
+                if (first) {
+                    ctx.moveTo(sx, sy);
+                    first = false;
+                } else {
+                    ctx.lineTo(sx, sy);
+                }
+            }
+            ctx.stroke();
+        }
+        
+        function drawHyperbola(shape) {
+            const xMin = centerX - canvas.width / 2 / scale;
+            const xMax = centerX + canvas.width / 2 / scale;
+            const yMin = centerY - canvas.height / 2 / scale;
+            const yMax = centerY + canvas.height / 2 / scale;
+            
+            ctx.lineWidth = 2;
+            
+            const a2 = shape.a * shape.a;
+            const b2 = shape.b * shape.b;
+            
+            ctx.beginPath();
+            let first = true;
+            for (let x = shape.a; x <= xMax; x += 1 / scale) {
+                const yVal = Math.sqrt((x * x / a2 - 1) * b2);
+                const [sx, sy] = worldToScreen(x, yVal);
+                if (first) { ctx.moveTo(sx, sy); first = false; }
+                else ctx.lineTo(sx, sy);
+            }
+            ctx.stroke();
+            
+            ctx.beginPath();
+            first = true;
+            for (let x = shape.a; x <= xMax; x += 1 / scale) {
+                const yVal = -Math.sqrt((x * x / a2 - 1) * b2);
+                const [sx, sy] = worldToScreen(x, yVal);
+                if (first) { ctx.moveTo(sx, sy); first = false; }
+                else ctx.lineTo(sx, sy);
+            }
+            ctx.stroke();
+            
+            ctx.beginPath();
+            first = true;
+            for (let x = -shape.a; x >= xMin; x -= 1 / scale) {
+                const yVal = Math.sqrt((x * x / a2 - 1) * b2);
+                const [sx, sy] = worldToScreen(x, yVal);
+                if (first) { ctx.moveTo(sx, sy); first = false; }
+                else ctx.lineTo(sx, sy);
+            }
+            ctx.stroke();
+            
+            ctx.beginPath();
+            first = true;
+            for (let x = -shape.a; x >= xMin; x -= 1 / scale) {
+                const yVal = -Math.sqrt((x * x / a2 - 1) * b2);
+                const [sx, sy] = worldToScreen(x, yVal);
+                if (first) { ctx.moveTo(sx, sy); first = false; }
+                else ctx.lineTo(sx, sy);
+            }
+            ctx.stroke();
+        }
+        
+        function drawExponential(shape) {
+            const xMin = centerX - canvas.width / 2 / scale;
+            const xMax = centerX + canvas.width / 2 / scale;
+            
+            ctx.beginPath();
+            ctx.lineWidth = 2;
+            
+            let first = true;
+            for (let x = xMin; x <= xMax; x += 1 / scale) {
+                const y = shape.a * Math.exp(shape.b * x) + shape.c;
+                const [sx, sy] = worldToScreen(x, y);
+                
+                if (sy > -100 && sy < canvas.height + 100) {
+                    if (first) { ctx.moveTo(sx, sy); first = false; }
+                    else ctx.lineTo(sx, sy);
+                }
+            }
+            ctx.stroke();
+        }
+        
+        function drawLogarithm(shape) {
+            const xMin = centerX - canvas.width / 2 / scale;
+            const xMax = centerX + canvas.width / 2 / scale;
+            
+            ctx.beginPath();
+            ctx.lineWidth = 2;
+            
+            let first = true;
+            for (let x = Math.max(0.001 / shape.b, xMin); x <= xMax; x += 1 / scale) {
+                if (shape.b * x > 0) {
+                    const y = shape.a * Math.log(shape.b * x) + shape.c;
+                    const [sx, sy] = worldToScreen(x, y);
+                    
+                    if (sy > -100 && sy < canvas.height + 100) {
+                        if (first) { ctx.moveTo(sx, sy); first = false; }
+                        else ctx.lineTo(sx, sy);
+                    }
+                }
+            }
+            ctx.stroke();
+        }
+        
+        function drawSine(shape) {
+            const xMin = centerX - canvas.width / 2 / scale;
+            const xMax = centerX + canvas.width / 2 / scale;
+            
+            ctx.beginPath();
+            ctx.lineWidth = 2;
+            
+            let first = true;
+            for (let x = xMin; x <= xMax; x += 1 / scale) {
+                const y = shape.a * Math.sin(shape.b * x + shape.c) + shape.d;
+                const [sx, sy] = worldToScreen(x, y);
+                
+                if (first) { ctx.moveTo(sx, sy); first = false; }
+                else ctx.lineTo(sx, sy);
+            }
+            ctx.stroke();
+        }
+        
+        function validateNumber(value) {
+            if (value === '' || value === '-' || value === '.') return true;
+            return /^-?\d*\.?\d*$/.test(value);
+        }
+        
+        function parseNumber(value, defaultVal) {
+            const num = parseFloat(value);
+            return isNaN(num) ? defaultVal : num;
+        }
+        
+        document.querySelectorAll('.number-input').forEach(input => {
+            input.addEventListener('input', function(e) {
+                if (!validateNumber(this.value)) {
+                    this.value = this.value.slice(0, -1);
+                }
+            });
+            
+            input.addEventListener('keydown', function(e) {
+                const allowedKeys = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Home', 'End'];
+                if (allowedKeys.includes(e.key)) return;
+                
+                if (e.key === '-' && this.value.indexOf('-') === -1 && this.selectionStart === 0) return;
+                if (e.key === '.' && this.value.indexOf('.') === -1) return;
+                if (/^\d$/.test(e.key)) return;
+                
+                e.preventDefault();
+            });
+        });
+        
+        function addPoint() {
+            const x = parseNumber(document.getElementById('pointX').value, 0);
+            const y = parseNumber(document.getElementById('pointY').value, 0);
+            shapes.push({ type: 'point', x, y, color: currentColor });
+            updateShapeList();
+            draw();
+            saveToLocalStorage();
+            document.getElementById('pointX').value = '';
+            document.getElementById('pointY').value = '';
+        }
+        
+        function addCircle() {
+            const x = parseNumber(document.getElementById('circleX').value, 0);
+            const y = parseNumber(document.getElementById('circleY').value, 0);
+            const r = parseNumber(document.getElementById('circleR').value, 2);
+            if (r <= 0) { alert('半径必须大于0'); return; }
+            shapes.push({ type: 'circle', x, y, r, color: currentColor });
+            updateShapeList();
+            draw();
+            saveToLocalStorage();
+        }
+        
+        function addEllipse() {
+            const x = parseNumber(document.getElementById('ellipseX').value, 0);
+            const y = parseNumber(document.getElementById('ellipseY').value, 0);
+            const a = parseNumber(document.getElementById('ellipseA').value, 3);
+            const b = parseNumber(document.getElementById('ellipseB').value, 2);
+            if (a <= 0 || b <= 0) { alert('长轴和短轴必须大于0'); return; }
+            shapes.push({ type: 'ellipse', x, y, a, b, color: currentColor });
+            updateShapeList();
+            draw();
+            saveToLocalStorage();
+        }
+        
+        function addLine() {
+            const k = parseNumber(document.getElementById('lineK').value, 1);
+            const b = parseNumber(document.getElementById('lineB').value, 0);
+            shapes.push({ type: 'line', k, b, color: currentColor });
+            updateShapeList();
+            draw();
+            saveToLocalStorage();
+        }
+        
+        function addParabola() {
+            const a = parseNumber(document.getElementById('parabolaA').value, 1);
+            const b = parseNumber(document.getElementById('parabolaB').value, 0);
+            const c = parseNumber(document.getElementById('parabolaC').value, 0);
+            if (a === 0) { alert('a不能为0'); return; }
+            shapes.push({ type: 'parabola', a, b, c, color: currentColor });
+            updateShapeList();
+            draw();
+            saveToLocalStorage();
+        }
+        
+        function addHyperbola() {
+            const a = parseNumber(document.getElementById('hyperbolaA').value, 2);
+            const b = parseNumber(document.getElementById('hyperbolaB').value, 1);
+            if (a <= 0 || b <= 0) { alert('a和b必须大于0'); return; }
+            shapes.push({ type: 'hyperbola', a, b, color: currentColor });
+            updateShapeList();
+            draw();
+            saveToLocalStorage();
+        }
+        
+        function addExponential() {
+            const a = parseNumber(document.getElementById('expA').value, 1);
+            const b = parseNumber(document.getElementById('expB').value, 1);
+            const c = parseNumber(document.getElementById('expC').value, 0);
+            shapes.push({ type: 'exponential', a, b, c, color: currentColor });
+            updateShapeList();
+            draw();
+            saveToLocalStorage();
+        }
+        
+        function addLogarithm() {
+            const a = parseNumber(document.getElementById('logA').value, 1);
+            const b = parseNumber(document.getElementById('logB').value, 1);
+            const c = parseNumber(document.getElementById('logC').value, 0);
+            shapes.push({ type: 'logarithm', a, b, c, color: currentColor });
+            updateShapeList();
+            draw();
+            saveToLocalStorage();
+        }
+        
+        function addSine() {
+            const a = parseNumber(document.getElementById('sinA').value, 1);
+            const b = parseNumber(document.getElementById('sinB').value, 1);
+            const c = parseNumber(document.getElementById('sinC').value, 0);
+            const d = parseNumber(document.getElementById('sinD').value, 0);
+            shapes.push({ type: 'sine', a, b, c, d, color: currentColor });
+            updateShapeList();
+            draw();
+            saveToLocalStorage();
+        }
+        
+        function updateShapeList() {
+            const list = document.getElementById('shapeList');
+            list.innerHTML = '';
+            
+            const typeNames = {
+                point: '点', circle: '圆', ellipse: '椭圆',
+                line: '直线', parabola: '抛物线', hyperbola: '双曲线',
+                exponential: '指数函数', logarithm: '对数函数', sine: '正弦函数'
+            };
+            
+            shapes.forEach((shape, index) => {
+                const item = document.createElement('div');
+                item.className = 'shape-item' + (index === selectedIndex ? ' selected' : '');
+                
+                let text = typeNames[shape.type];
+                if (shape.type === 'point') text += ` (${shape.x.toFixed(1)}, ${shape.y.toFixed(1)})`;
+                else if (shape.type === 'circle') text += ` r=${shape.r.toFixed(1)}`;
+                else if (shape.type === 'ellipse') text += ` a=${shape.a.toFixed(1)} b=${shape.b.toFixed(1)}`;
+                else if (shape.type === 'line') text += ` y=${shape.k}x+${shape.b}`;
+                else if (shape.type === 'parabola') text += ` y=${shape.a}x²+${shape.b}x+${shape.c}`;
+                else if (shape.type === 'hyperbola') text += ` a=${shape.a} b=${shape.b}`;
+                else if (shape.type === 'exponential') text += ` y=${shape.a}e^(${shape.b}x)+${shape.c}`;
+                else if (shape.type === 'logarithm') text += ` y=${shape.a}ln(${shape.b}x)+${shape.c}`;
+                else if (shape.type === 'sine') text += ` y=${shape.a}sin(${shape.b}x+${shape.c})+${shape.d}`;
+                
+                item.innerHTML = `<span><span class="shape-color" style="background: ${shape.color}"></span>${text}</span>`;
+                item.onclick = () => selectShape(index);
+                list.appendChild(item);
+            });
+        }
+        
+        function selectShape(index) {
+            selectedIndex = index;
+            updateShapeList();
+        }
+        
+        function deleteSelected() {
+            if (selectedIndex >= 0 && selectedIndex < shapes.length) {
+                shapes.splice(selectedIndex, 1);
+                selectedIndex = -1;
+                updateShapeList();
+                draw();
+                saveToLocalStorage();
+            }
+        }
+        
+        function clearAll() {
+            shapes = [];
+            selectedIndex = -1;
+            updateShapeList();
+            draw();
+            saveToLocalStorage();
+        }
+        
+        function updateRangeInputs() {
+            const xMin = centerX - canvas.width / 2 / scale;
+            const xMax = centerX + canvas.width / 2 / scale;
+            const yMin = centerY - canvas.height / 2 / scale;
+            const yMax = centerY + canvas.height / 2 / scale;
+            
+            document.getElementById('xMin').value = xMin.toFixed(2);
+            document.getElementById('xMax').value = xMax.toFixed(2);
+            document.getElementById('yMin').value = yMin.toFixed(2);
+            document.getElementById('yMax').value = yMax.toFixed(2);
+        }
+        
+        function applyRange() {
+            const newXMin = parseNumber(document.getElementById('xMin').value, -10);
+            const newXMax = parseNumber(document.getElementById('xMax').value, 10);
+            const newYMin = parseNumber(document.getElementById('yMin').value, -10);
+            const newYMax = parseNumber(document.getElementById('yMax').value, 10);
+            
+            if (newXMin >= newXMax || newYMin >= newYMax) {
+                alert('最小值必须小于最大值');
+                return;
+            }
+            
+            centerX = (newXMin + newXMax) / 2;
+            centerY = (newYMin + newYMax) / 2;
+            scale = Math.min(canvas.width / (newXMax - newXMin), canvas.height / (newYMax - newYMin));
+            draw();
+        }
+        
+        function autoFit() {
+            if (shapes.length === 0) { resetView(); return; }
+            
+            let xCoords = [], yCoords = [];
+            
+            shapes.forEach(shape => {
+                if (shape.type === 'point') {
+                    xCoords.push(shape.x); yCoords.push(shape.y);
+                } else if (shape.type === 'circle') {
+                    xCoords.push(shape.x - shape.r, shape.x + shape.r);
+                    yCoords.push(shape.y - shape.r, shape.y + shape.r);
+                } else if (shape.type === 'ellipse') {
+                    xCoords.push(shape.x - shape.a, shape.x + shape.a);
+                    yCoords.push(shape.y - shape.b, shape.y + shape.b);
+                }
+            });
+            
+            if (xCoords.length === 0) { resetView(); return; }
+            
+            const pad = 2;
+            const xMin = Math.min(...xCoords) - pad;
+            const xMax = Math.max(...xCoords) + pad;
+            const yMin = Math.min(...yCoords) - pad;
+            const yMax = Math.max(...yCoords) + pad;
+            
+            centerX = (xMin + xMax) / 2;
+            centerY = (yMin + yMax) / 2;
+            scale = Math.min(canvas.width / (xMax - xMin), canvas.height / (yMax - yMin)) * 0.9;
+            draw();
+        }
+        
+        function resetView() {
+            centerX = 0; centerY = 0; scale = baseScale;
+            draw();
+        }
+        
+        function updateZoomInfo() {
+            const zoomPercent = Math.round(scale / baseScale * 100);
+            document.getElementById('zoomInfo').textContent = `缩放: ${zoomPercent}%`;
+        }
+        
+        function saveImage() {
+            const panel = document.getElementById('controlPanel');
+            const wasVisible = !panel.classList.contains('collapsed');
+            
+            panel.classList.add('collapsed');
+            document.getElementById('expandHint').classList.add('visible');
+            
+            setTimeout(() => {
+                const link = document.createElement('a');
+                link.download = 'math_graph_' + Date.now() + '.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            }, 100);
+        }
+        
+        function saveData() {
+            const data = {
+                shapes: shapes,
+                centerX: centerX,
+                centerY: centerY,
+                scale: scale,
+                showGrid: showGrid,
+                showAxis: showAxis,
+                showLabels: showLabels,
+                currentColor: currentColor
+            };
+            
+            const jsonStr = JSON.stringify(data, null, 2);
+            const blob = new Blob([jsonStr], { type: 'application/json' });
+            const link = document.createElement('a');
+            link.download = 'math_data_' + Date.now() + '.json';
+            link.href = URL.createObjectURL(blob);
+            link.click();
+            URL.revokeObjectURL(link.href);
+        }
+        
+        function loadData() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    try {
+                        const data = JSON.parse(event.target.result);
+                        
+                        if (data.shapes) shapes = data.shapes;
+                        if (data.centerX !== undefined) centerX = data.centerX;
+                        if (data.centerY !== undefined) centerY = data.centerY;
+                        if (data.scale !== undefined) scale = data.scale;
+                        if (data.showGrid !== undefined) {
+                            showGrid = data.showGrid;
+                            document.getElementById('showGrid').checked = showGrid;
+                        }
+                        if (data.showAxis !== undefined) {
+                            showAxis = data.showAxis;
+                            document.getElementById('showAxis').checked = showAxis;
+                        }
+                        if (data.showLabels !== undefined) {
+                            showLabels = data.showLabels;
+                            document.getElementById('showLabels').checked = showLabels;
+                        }
+                        if (data.currentColor !== undefined) {
+                            currentColor = data.currentColor;
+                            document.getElementById('colorPicker').value = currentColor;
+                            document.getElementById('colorPreview').style.background = currentColor;
+                            updatePresetColorSelection(currentColor);
+                        }
+                        
+                        updateShapeList();
+                        draw();
+                        saveToLocalStorage();
+                        alert('数据加载成功！');
+                    } catch (err) {
+                        alert('文件格式错误，无法加载');
+                    }
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        }
+        
+        function saveToLocalStorage() {
+            const data = {
+                shapes: shapes,
+                centerX: centerX,
+                centerY: centerY,
+                scale: scale,
+                showGrid: showGrid,
+                showAxis: showAxis,
+                showLabels: showLabels,
+                currentColor: currentColor
+            };
+            localStorage.setItem('mathToolData', JSON.stringify(data));
+        }
+        
+        function loadFromLocalStorage() {
+            const saved = localStorage.getItem('mathToolData');
+            if (saved) {
+                try {
+                    const data = JSON.parse(saved);
+                    
+                    if (data.shapes) shapes = data.shapes;
+                    if (data.centerX !== undefined) centerX = data.centerX;
+                    if (data.centerY !== undefined) centerY = data.centerY;
+                    if (data.scale !== undefined) scale = data.scale;
+                    if (data.showGrid !== undefined) {
+                        showGrid = data.showGrid;
+                        document.getElementById('showGrid').checked = showGrid;
+                    }
+                    if (data.showAxis !== undefined) {
+                        showAxis = data.showAxis;
+                        document.getElementById('showAxis').checked = showAxis;
+                    }
+                    if (data.showLabels !== undefined) {
+                        showLabels = data.showLabels;
+                        document.getElementById('showLabels').checked = showLabels;
+                    }
+                    if (data.currentColor !== undefined) {
+                        currentColor = data.currentColor;
+                        document.getElementById('colorPicker').value = currentColor;
+                        document.getElementById('colorPreview').style.background = currentColor;
+                        updatePresetColorSelection(currentColor);
+                    }
+                    
+                    updateShapeList();
+                    draw();
+                } catch (err) {
+                    console.error('加载本地存储失败:', err);
+                }
+            }
+        }
+        
+        function clearStorage() {
+            if (confirm('确定要清除所有本地存储的数据吗？这将删除所有保存的图形。')) {
+                localStorage.removeItem('mathToolData');
+                shapes = [];
+                selectedIndex = -1;
+                updateShapeList();
+                draw();
+            }
+        }
+        
+        const originalAddShape = shapes.push.bind(shapes);
+        shapes.push = function(shape) {
+            const result = Array.prototype.push.call(shapes, shape);
+            saveToLocalStorage();
+            return result;
+        };
+        
+        canvas.addEventListener('wheel', function(e) {
+            e.preventDefault();
+            const [mouseX, mouseY] = screenToWorld(e.offsetX, e.offsetY);
+            const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+            scale *= zoomFactor;
+            scale = Math.max(1, Math.min(10000, scale));
+            const [newMouseX, newMouseY] = screenToWorld(e.offsetX, e.offsetY);
+            centerX += mouseX - newMouseX;
+            centerY += mouseY - newMouseY;
+            draw();
+        });
+        
+        canvas.addEventListener('mousedown', function(e) {
+            isDragging = true;
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+            canvas.style.cursor = 'grabbing';
+        });
+        
+        canvas.addEventListener('mousemove', function(e) {
+            if (isDragging) {
+                centerX -= (e.clientX - lastMouseX) / scale;
+                centerY += (e.clientY - lastMouseY) / scale;
+                lastMouseX = e.clientX;
+                lastMouseY = e.clientY;
+                draw();
+            }
+        });
+        
+        canvas.addEventListener('mouseup', () => { isDragging = false; canvas.style.cursor = 'default'; });
+        canvas.addEventListener('mouseleave', () => { isDragging = false; canvas.style.cursor = 'default'; });
+        canvas.addEventListener('dblclick', resetView);
+        
+        const panel = document.getElementById('controlPanel');
+        const header = document.getElementById('panelHeader');
+        const toggleBtn = document.getElementById('toggleBtn');
+        const expandHint = document.getElementById('expandHint');
+        const resizeHandle = document.getElementById('resizeHandle');
+        
+        let isPanelDragging = false, panelOffsetX, panelOffsetY;
+        
+        header.addEventListener('mousedown', function(e) {
+            if (e.target === toggleBtn) return;
+            isPanelDragging = true;
+            panelOffsetX = e.clientX - panel.offsetLeft;
+            panelOffsetY = e.clientY - panel.offsetTop;
+        });
+        
+        document.addEventListener('mousemove', function(e) {
+            if (isPanelDragging) {
+                panel.style.left = (e.clientX - panelOffsetX) + 'px';
+                panel.style.top = (e.clientY - panelOffsetY) + 'px';
+            }
+        });
+        
+        document.addEventListener('mouseup', () => { isPanelDragging = false; });
+        
+        toggleBtn.addEventListener('click', function() {
+            panel.classList.add('collapsed');
+            expandHint.classList.add('visible');
+        });
+        
+        expandHint.addEventListener('click', function() {
+            panel.classList.remove('collapsed');
+            expandHint.classList.remove('visible');
+        });
+        
+        let isResizing = false, startWidth, startX;
+        
+        resizeHandle.addEventListener('mousedown', function(e) {
+            isResizing = true;
+            startWidth = panel.offsetWidth;
+            startX = e.clientX;
+            e.preventDefault();
+            e.stopPropagation();
+        });
+        
+        document.addEventListener('mousemove', function(e) {
+            if (isResizing) {
+                const newWidth = startWidth + (e.clientX - startX);
+                if (newWidth >= 250 && newWidth <= 450) {
+                    panel.style.width = newWidth + 'px';
+                }
+            }
+        });
+        
+        document.addEventListener('mouseup', () => { isResizing = false; });
+        
+        loadFromLocalStorage();
+        draw();
+    </script>
+</body>
+</html>
